@@ -63,6 +63,8 @@ Labels are aligned to the feature grid in `research/utils/dataset.py` when CRS o
 * **Head:** 1×1 convolution to `num_classes` channels (binary segmentation uses `num_classes=1` logits).
 * **Padding:** `SegLitModule` pads height/width to a multiple of `pad_multiple`. CLI `--pad-multiple` defaults to **0**, which means **16** in code; replicate padding, then logits are cropped back to the original size.
 
+<img width="1555" height="1036" alt="image" src="https://github.com/user-attachments/assets/16676e30-c26d-4162-8de7-60639c3e1719" />
+
 ---
 
 ## 4. Loss, optimizer, metrics
@@ -92,6 +94,8 @@ Labels are aligned to the feature grid in `research/utils/dataset.py` when CRS o
 * **Validation:** Full tile, batch size 1.
 * **Early stopping:** On **`val_union_iou`** with **`--early-stop-patience`** (default 30).
 * **Outputs:** Checkpoints under `{--out-dir}/checkpoints/version_N/fold{k}/best-*.ckpt`. TensorBoard under `{--out-dir}/tensorboard/fold*/`.
+
+<img width="850" height="481" alt="image" src="https://github.com/user-attachments/assets/3307683a-04d9-42a5-b8c1-7c98345c8fc2" />
 
 ### Minimal training command
 
