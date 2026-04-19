@@ -15,31 +15,38 @@ type Screen = 'globe' | 'analyze' | 'pipeline'
 function App() {
   const [screen, setScreen] = useState<Screen>('globe')
   const [analyzeRegion, setAnalyzeRegion] = useState<Region | null>(null)
+  const [analyzeTileId, setAnalyzeTileId] = useState<string | null>(null)
   const [region, setRegion] = useState<Region | null>(null)
+  const [regionTileId, setRegionTileId] = useState<string | null>(null)
   const [regionModalOpen, setRegionModalOpen] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
-  const handleGlobeSelect = useCallback((r: Region) => {
+  const handleGlobeSelect = useCallback((r: Region, tile?: { tile_id: string }) => {
     setRegion(r)
+    setRegionTileId(tile?.tile_id ?? null)
     setRegionModalOpen(true)
   }, [])
 
   const closeRegionModal = useCallback(() => {
     setRegionModalOpen(false)
     setRegion(null)
+    setRegionTileId(null)
   }, [])
 
   const handleRegionConfirm = useCallback(() => {
     if (!region) return
     const snapshot = { lat: region.lat, lng: region.lng }
+    const tileId = regionTileId
     closeRegionModal()
     setAnalyzeRegion(snapshot)
+    setAnalyzeTileId(tileId)
     setScreen('analyze')
-  }, [region, closeRegionModal])
+  }, [region, regionTileId, closeRegionModal])
 
   const handleBackFromAnalyze = useCallback(() => {
     setScreen('globe')
     setAnalyzeRegion(null)
+    setAnalyzeTileId(null)
   }, [])
 
   return (
@@ -103,7 +110,11 @@ function App() {
       )}
 
       {screen === 'analyze' && analyzeRegion && (
-        <MonitoringView onBack={handleBackFromAnalyze} region={analyzeRegion} />
+        <MonitoringView
+          onBack={handleBackFromAnalyze}
+          region={analyzeRegion}
+          tileId={analyzeTileId ?? undefined}
+        />
       )}
 
       {screen === 'pipeline' && <PipelinePage onBack={() => setScreen('globe')} />}

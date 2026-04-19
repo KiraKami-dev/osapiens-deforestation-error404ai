@@ -19,6 +19,8 @@ type SubmissionGlobeMapProps = {
 
 const TILES_URL = new URL('../assets/tiles_clickable.json', import.meta.url).href
 const SUBMISSION_URL = `${import.meta.env.BASE_URL}data/submission.geojson`
+const AUTO_ROTATE_DEG_PER_SEC = 1.8
+const AUTO_ROTATE_RESUME_DELAY_MS = 900
 
 const GLOBE_STYLE = {
   version: 8 as const,
@@ -66,6 +68,9 @@ export function SubmissionGlobeMap({ onSelectRegion }: SubmissionGlobeMapProps) 
     type: 'FeatureCollection',
     features: [],
   })
+  const isTileHoveredRef = useRef(false)
+  const isUserInteractingRef = useRef(false)
+  const lastInteractionAtRef = useRef(0)
   const [tiles, setTiles] = useState<TilePoint[]>([])
   const [hoveredTile, setHoveredTile] = useState<TilePoint | null>(null)
 
@@ -104,14 +109,62 @@ export function SubmissionGlobeMap({ onSelectRegion }: SubmissionGlobeMapProps) 
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: GLOBE_STYLE as unknown as maplibregl.StyleSpecification,
-      // Southeast Asia — Vietnam / Thailand toward the camera on first paint
-      center: [102.5, 14.2],
+      // Start centered near India on first paint
+      center: [78.96, 22.59],
       zoom: 2.85,
       attributionControl: { compact: true },
       maxZoom: 16,
     })
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right')
     mapRef.current = map
+
+    const canvas = map.getCanvas()
+    const onPointerDown = () => {
+      isUserInteractingRef.current = true
+      lastInteractionAtRef.current = Date.now()
+    }
+    const onPointerUp = () => {
+      isUserInteractingRef.current = false
+      lastInteractionAtRef.current = Date.now()
+    }
+    const onPointerLeave = (e: PointerEvent) => {
+      if (e.buttons !== 0) return
+      isUserInteractingRef.current = false
+      lastInteractionAtRef.current = Date.now()
+    }
+    const onWindowBlur = () => {
+      isUserInteractingRef.current = false
+      lastInteractionAtRef.current = Date.now()
+    }
+    canvas.addEventListener('pointerdown', onPointerDown)
+    canvas.addEventListener('pointerleave', onPointerLeave)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('blur', onWindowBlur)
+
+    let rafId = 0
+    let autoRotateStarted = false
+    let prevTs = performance.now()
+    const tick = (ts: number) => {
+      const dtSec = (ts - prevTs) / 1000
+      prevTs = ts
+      const canAutoRotate =
+        !isTileHoveredRef.current &&
+        !isUserInteractingRef.current &&
+        Date.now() - lastInteractionAtRef.current >= AUTO_ROTATE_RESUME_DELAY_MS
+      if (canAutoRotate) {
+        const center = map.getCenter()
+        const nextLng =
+          ((((center.lng + dtSec * AUTO_ROTATE_DEG_PER_SEC) % 360) + 540) % 360) - 180
+        map.jumpTo({ center: [nextLng, center.lat] })
+      }
+      rafId = window.requestAnimationFrame(tick)
+    }
+    const startAutoRotate = () => {
+      if (autoRotateStarted) return
+      autoRotateStarted = true
+      prevTs = performance.now()
+      rafId = window.requestAnimationFrame(tick)
+    }
 
     const initLayers = () => {
       if (map.getSource('tiles-globe')) return
@@ -195,6 +248,7 @@ export function SubmissionGlobeMap({ onSelectRegion }: SubmissionGlobeMapProps) 
 
       map.on('mouseenter', 'tiles-dot', (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
         map.getCanvas().style.cursor = 'pointer'
+        isTileHoveredRef.current = true
         const f = e.features?.[0]
         if (!f) return
         const props = (f.properties ?? {}) as Record<string, unknown>
@@ -206,6 +260,7 @@ export function SubmissionGlobeMap({ onSelectRegion }: SubmissionGlobeMapProps) 
       })
       map.on('mouseleave', 'tiles-dot', () => {
         map.getCanvas().style.cursor = ''
+        isTileHoveredRef.current = false
         setHoveredTile(null)
       })
 
@@ -220,6 +275,7 @@ export function SubmissionGlobeMap({ onSelectRegion }: SubmissionGlobeMapProps) 
         }
         onSelectRegion({ lat: tile.lat, lng: tile.lng }, tile)
       })
+      startAutoRotate()
     }
 
     if (map.isStyleLoaded()) initLayers()
@@ -227,10 +283,17 @@ export function SubmissionGlobeMap({ onSelectRegion }: SubmissionGlobeMapProps) 
     map.on('style.load', initLayers)
 
     return () => {
+      window.cancelAnimationFrame(rafId)
+      canvas.removeEventListener('pointerdown', onPointerDown)
+      canvas.removeEventListener('pointerleave', onPointerLeave)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('blur', onWindowBlur)
       map.off('load', initLayers)
       map.off('style.load', initLayers)
       map.remove()
       mapRef.current = null
+      isTileHoveredRef.current = false
+      isUserInteractingRef.current = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

@@ -30,21 +30,23 @@ type SubmissionMapProps = {
 
 const DEFAULT_GEOJSON_URL = `${import.meta.env.BASE_URL}data/submission.geojson`
 
-const TIME_STEP_COLORS: Record<string, string> = {
-  '2106': '#fde047',
-  '2206': '#fb923c',
-  '2306': '#f43f5e',
-  '2406': '#a855f7',
-  '2506': '#38bdf8',
-}
 const FALLBACK_POLYGON_COLOR = '#22d3ee'
+const YEAR_PALETTE = [
+  '#fde047',
+  '#fb923c',
+  '#f43f5e',
+  '#a855f7',
+  '#38bdf8',
+  '#34d399',
+  '#60a5fa',
+  '#f472b6',
+]
 
-const FILL_COLOR_EXPR = [
-  'match',
-  ['get', 'time_step'],
-  ...Object.entries(TIME_STEP_COLORS).flatMap(([k, v]) => [k, v]),
-  FALLBACK_POLYGON_COLOR,
-] as unknown as ExpressionSpecification
+function getYearCode(timeStep: string): string | null {
+  const normalized = timeStep.trim()
+  if (!/^\d{4}$/.test(normalized)) return null
+  return normalized.slice(0, 2)
+}
 
 const SATELLITE_STYLE = {
   version: 8 as const,
@@ -138,6 +140,37 @@ export function SubmissionMap({
     }
     return Array.from(set).sort()
   }, [data])
+
+  const yearColors = useMemo(() => {
+    const yearCodes = Array.from(
+      new Set(timeSteps.map((ts) => getYearCode(ts)).filter((y): y is string => y !== null)),
+    ).sort()
+    const out: Record<string, string> = {}
+    yearCodes.forEach((year, idx) => {
+      out[year] = YEAR_PALETTE[idx % YEAR_PALETTE.length]
+    })
+    return out
+  }, [timeSteps])
+
+  const timeStepColors = useMemo(() => {
+    const out: Record<string, string> = {}
+    for (const ts of timeSteps) {
+      const year = getYearCode(ts)
+      out[ts] = (year && yearColors[year]) || FALLBACK_POLYGON_COLOR
+    }
+    return out
+  }, [timeSteps, yearColors])
+
+  const fillColorExpr = useMemo(
+    () =>
+      [
+        'match',
+        ['get', 'time_step'],
+        ...Object.entries(timeStepColors).flatMap(([k, v]) => [k, v]),
+        FALLBACK_POLYGON_COLOR,
+      ] as unknown as ExpressionSpecification,
+    [timeStepColors],
+  )
 
   const missingTimeStepCount = useMemo(() => {
     let n = 0
@@ -261,78 +294,85 @@ export function SubmissionMap({
       const src = map.getSource('submission') as GeoJSONSource | undefined
       if (src) {
         src.setData(data as GeoJSON.GeoJSON)
-        return
+      } else {
+        map.addSource('submission', {
+          type: 'geojson',
+          data: data as GeoJSON.GeoJSON,
+          promoteId: undefined,
+        })
       }
-      map.addSource('submission', {
-        type: 'geojson',
-        data: data as GeoJSON.GeoJSON,
-        promoteId: undefined,
-      })
-      map.addLayer({
-        id: 'submission-fill',
-        type: 'fill',
-        source: 'submission',
-        paint: {
-          'fill-color': FILL_COLOR_EXPR,
-          'fill-opacity': [
-            'case',
-            ['boolean', ['feature-state', 'hover'], false],
-            0.55,
-            0.32,
-          ],
-        },
-      })
-      map.addLayer({
-        id: 'submission-outline',
-        type: 'line',
-        source: 'submission',
-        paint: {
-          'line-color': FILL_COLOR_EXPR,
-          'line-width': [
-            'interpolate',
-            ['linear'],
-            ['zoom'],
-            6,
-            0.6,
-            12,
-            1.4,
-            16,
-            2.4,
-          ],
-          'line-opacity': 0.95,
-        },
-      })
 
-      let hoveredId: number | string | undefined
-      map.on('mousemove', 'submission-fill', (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
-        map.getCanvas().style.cursor = 'pointer'
-        const f = e.features?.[0]
-        if (!f) return
-        if (hoveredId !== undefined) {
-          map.setFeatureState({ source: 'submission', id: hoveredId }, { hover: false })
-        }
-        hoveredId = f.id as number | string | undefined
-        if (hoveredId !== undefined) {
-          map.setFeatureState({ source: 'submission', id: hoveredId }, { hover: true })
-        }
-      })
-      map.on('mouseleave', 'submission-fill', () => {
-        map.getCanvas().style.cursor = ''
-        if (hoveredId !== undefined) {
-          map.setFeatureState({ source: 'submission', id: hoveredId }, { hover: false })
-          hoveredId = undefined
-        }
-      })
+      if (!map.getLayer('submission-fill')) {
+        map.addLayer({
+          id: 'submission-fill',
+          type: 'fill',
+          source: 'submission',
+          paint: {
+            'fill-color': fillColorExpr,
+            'fill-opacity': [
+              'case',
+              ['boolean', ['feature-state', 'hover'], false],
+              0.55,
+              0.32,
+            ],
+          },
+        })
+      } else {
+        map.setPaintProperty('submission-fill', 'fill-color', fillColorExpr)
+      }
 
-      map.on('click', 'submission-fill', (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
-        const f = e.features?.[0]
-        if (!f) return
-        const props = (f.properties ?? {}) as Record<string, unknown>
-        const ts = typeof props.time_step === 'string' ? props.time_step : '—'
-        const human = formatTimeStepShort(ts) ?? ts
-        const numeric = formatTimeStepMonthYearNumeric(ts)
-        const tile = typeof props.tile_id === 'string' ? props.tile_id : null
-        const html = `
+      if (!map.getLayer('submission-outline')) {
+        map.addLayer({
+          id: 'submission-outline',
+          type: 'line',
+          source: 'submission',
+          paint: {
+            'line-color': fillColorExpr,
+            'line-width': [
+              'interpolate',
+              ['linear'],
+              ['zoom'],
+              6,
+              0.6,
+              12,
+              1.4,
+              16,
+              2.4,
+            ],
+            'line-opacity': 0.95,
+          },
+        })
+
+        let hoveredId: number | string | undefined
+        map.on('mousemove', 'submission-fill', (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+          map.getCanvas().style.cursor = 'pointer'
+          const f = e.features?.[0]
+          if (!f) return
+          if (hoveredId !== undefined) {
+            map.setFeatureState({ source: 'submission', id: hoveredId }, { hover: false })
+          }
+          hoveredId = f.id as number | string | undefined
+          if (hoveredId !== undefined) {
+            map.setFeatureState({ source: 'submission', id: hoveredId }, { hover: true })
+          }
+        })
+        map.on('mouseleave', 'submission-fill', () => {
+          map.getCanvas().style.cursor = ''
+          if (hoveredId !== undefined) {
+            map.setFeatureState({ source: 'submission', id: hoveredId }, { hover: false })
+            hoveredId = undefined
+          }
+        })
+
+        map.on('click', 'submission-fill', (e: MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+          const f = e.features?.[0]
+          if (!f) return
+          const props = (f.properties ?? {}) as Record<string, unknown>
+          const ts = typeof props.time_step === 'string' ? props.time_step : '—'
+          const human = formatTimeStepShort(ts) ?? ts
+          const numeric = formatTimeStepMonthYearNumeric(ts)
+          const tile = typeof props.tile_id === 'string' ? props.tile_id : null
+          const html = `
           <div class="submission-map-popup">
             <div class="submission-map-popup__row"><span>Period</span><strong>${human}</strong></div>
             ${
@@ -344,17 +384,20 @@ export function SubmissionMap({
             ${tile ? `<div class="submission-map-popup__row"><span>tile_id</span><strong>${tile}</strong></div>` : ''}
             <div class="submission-map-popup__row"><span>lng,lat</span><strong>${e.lngLat.lng.toFixed(5)}, ${e.lngLat.lat.toFixed(5)}</strong></div>
           </div>`
-        popupRef.current?.remove()
-        popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
-          .setLngLat(e.lngLat)
-          .setHTML(html)
-          .addTo(map)
-      })
+          popupRef.current?.remove()
+          popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: '260px' })
+            .setLngLat(e.lngLat)
+            .setHTML(html)
+            .addTo(map)
+        })
+      } else {
+        map.setPaintProperty('submission-outline', 'line-color', fillColorExpr)
+      }
     }
 
     if (map.isStyleLoaded()) apply()
     else map.once('load', apply)
-  }, [data])
+  }, [data, fillColorExpr])
 
   useEffect(() => {
     const map = mapRef.current
@@ -454,7 +497,7 @@ export function SubmissionMap({
                   className={`submission-map__chip${selectedTimeStep === ts ? ' is-active' : ''}`}
                   onClick={() => setSelectedTimeStep((cur) => (cur === ts ? null : ts))}
                   style={{
-                    ['--chip-color' as string]: TIME_STEP_COLORS[ts] ?? FALLBACK_POLYGON_COLOR,
+                    ['--chip-color' as string]: timeStepColors[ts] ?? FALLBACK_POLYGON_COLOR,
                   }}
                   title={
                     formatTimeStepMmYy(ts)
@@ -474,17 +517,17 @@ export function SubmissionMap({
           <summary className="submission-map__legend-summary">Color key · time_step</summary>
           <div className="submission-map__legend-details-body">
             <p className="submission-map__color-legend-copy">
-              Fill/outline = <code>time_step</code> as <code>YYMM</code> (YY = year in century, MM = month).
-              Labels show month + year; raw code in tooltip on chips.
+              Fill/outline colors are keyed by <code>year</code> (from <code>time_step</code> code{' '}
+              <code>YYMM</code>), so every year has a distinct color while months in the same year share
+              it.
             </p>
             {timeSteps.length > 0 ? (
               <ul className="submission-map__color-grid">
                 {timeSteps.map((ts) => {
-                  const color = TIME_STEP_COLORS[ts] ?? FALLBACK_POLYGON_COLOR
+                  const color = timeStepColors[ts] ?? FALLBACK_POLYGON_COLOR
                   const short = formatTimeStepShort(ts)
                   const numeric = formatTimeStepMonthYearNumeric(ts)
-                  const paletteNote =
-                    ts in TIME_STEP_COLORS ? '' : ' · fallback'
+                  const year = getYearCode(ts)
                   return (
                     <li key={ts} className="submission-map__color-grid-item">
                       <span
@@ -494,8 +537,8 @@ export function SubmissionMap({
                       />
                       <span className="submission-map__color-grid-text">
                         <span className="submission-map__color-primary">
-                          {formatTimeStepMmYy(ts) ?? ts}
-                          {paletteNote}
+                          {formatTimeStepMmYy(ts) ?? ts}{' '}
+                          {year ? `(20${year})` : '(unparsed time_step)'}
                         </span>
                         <span className="submission-map__color-secondary">
                           {short ?? '—'} · {numeric ?? `code ${ts}`}

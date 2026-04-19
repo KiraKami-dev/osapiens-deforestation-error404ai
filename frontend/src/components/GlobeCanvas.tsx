@@ -13,6 +13,8 @@ export const EARTH_RADIUS = 2
 /** Slightly above tile markers so outline is visible. */
 export const POLYGON_OVERLAY_RADIUS = EARTH_RADIUS + 0.042
 const TILE_POINT_RADIUS = 0.014
+const EARTH_GROUP_SCALE = 1.05
+const EARTH_GROUP_X_OFFSET = -0.2
 
 /** Served from `/public/textures` (NASA Blue Marble–style assets via three.js examples). */
 const TEXTURES = {
@@ -123,7 +125,7 @@ function Earth({
   useFrame((_, delta) => {
     if (pauseSpin) return
     if (groupRef.current && !isTileHovered) {
-      groupRef.current.rotation.y += delta * 0.08
+      groupRef.current.rotation.y += delta * 0.11
     }
   })
 
@@ -156,7 +158,7 @@ function Earth({
   }
 
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} scale={EARTH_GROUP_SCALE} position-x={EARTH_GROUP_X_OFFSET}>
       <mesh
         ref={meshRef}
         onClick={handleClick}
@@ -237,11 +239,13 @@ function TilePoints({
             e.stopPropagation()
             void onTileClick(tile)
           }}
-          onPointerOver={() => {
+          onPointerEnter={(e) => {
+            e.stopPropagation()
             document.body.style.cursor = 'pointer'
             onHoverChange(true)
           }}
-          onPointerOut={() => {
+          onPointerLeave={(e) => {
+            e.stopPropagation()
             document.body.style.cursor = 'auto'
             onHoverChange(false)
           }}

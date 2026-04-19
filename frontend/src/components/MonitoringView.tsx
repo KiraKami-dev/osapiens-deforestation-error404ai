@@ -12,6 +12,8 @@ export type MonitoringViewProps = {
   onBack: () => void
   /** Tile center; defaults to demo tile if omitted (e.g. tests). */
   region?: Region
+  /** Selected challenge tile id from the globe tap. */
+  tileId?: string
 }
 
 const DEMO_GEOJSON_URL = `${import.meta.env.BASE_URL}data/demo_predictions.geojson`
@@ -27,6 +29,7 @@ type SubmissionMeta = {
   totalFeatures: number
   returnedFeatures: number
   label: string
+  geojsonUrl: string
   timeStep: string | null
 }
 
@@ -38,9 +41,9 @@ type SubmissionState = {
   meta: SubmissionMeta | null
 }
 
-export function MonitoringView({ onBack, region: regionProp }: MonitoringViewProps) {
+export function MonitoringView({ onBack, region: regionProp, tileId }: MonitoringViewProps) {
   const region = regionProp ?? MONITORING_REGION
-  const requestKey = `${region.lat}:${region.lng}`
+  const requestKey = `${region.lat}:${region.lng}:${tileId ?? 'no-tile'}`
   const [submission, setSubmission] = useState<SubmissionState>({
     key: '',
     status: 'ok',
@@ -52,7 +55,52 @@ export function MonitoringView({ onBack, region: regionProp }: MonitoringViewPro
   useEffect(() => {
     let cancelled = false
 
+    const readJsonIfPossible = async (res: Response): Promise<unknown | null> => {
+      const contentType = res.headers.get('content-type')?.toLowerCase() ?? ''
+      if (!contentType.includes('json')) return null
+      try {
+        return (await res.json()) as unknown
+      } catch {
+        return null
+      }
+    }
+
     const run = async () => {
+      if (tileId) {
+        const base = import.meta.env.BASE_URL
+        const encodedTileId = encodeURIComponent(tileId)
+        const tileCandidates = [
+          `${base}data/by_region/${encodedTileId}.geojson`,
+          `${base}data/by_region_train/${encodedTileId}.geojson`,
+        ]
+
+        for (const url of tileCandidates) {
+          const res = await fetch(url).catch(() => null)
+          if (!res?.ok) continue
+          const raw = await readJsonIfPossible(res)
+          if (!raw) continue
+          if (cancelled) return
+          const overlay = extractSubmissionOverlay(raw)
+          setSubmission({
+            key: requestKey,
+            status: overlay.polygons.length ? 'ok' : 'error',
+            error: overlay.polygons.length
+              ? null
+              : `No polygon geometry found for tile ${tileId}.`,
+            polygons: overlay.polygons,
+            meta: {
+              preview: false,
+              totalFeatures: overlay.featureCount,
+              returnedFeatures: overlay.featureCount,
+              label: `${tileId}.geojson`,
+              geojsonUrl: url,
+              timeStep: overlay.timeStep,
+            },
+          })
+          return
+        }
+      }
+
       const trySubmission = await apiFetch('/submission-geojson?max_features=150').catch(
         () => null,
       )
@@ -82,6 +130,7 @@ export function MonitoringView({ onBack, region: regionProp }: MonitoringViewPro
             totalFeatures: data._total_features ?? overlay.featureCount,
             returnedFeatures: data._returned_features ?? overlay.featureCount,
             label: 'submission_version_0.geojson',
+            geojsonUrl: `${import.meta.env.BASE_URL}data/submission_version_0.geojson`,
             timeStep: overlay.timeStep,
           },
         })
@@ -90,7 +139,8 @@ export function MonitoringView({ onBack, region: regionProp }: MonitoringViewPro
 
       const demo = await fetch(DEMO_GEOJSON_URL)
       if (!demo.ok) throw new Error(`Demo GeoJSON HTTP ${demo.status}`)
-      const raw = (await demo.json()) as unknown
+      const raw = await readJsonIfPossible(demo)
+      if (!raw) throw new Error('Demo GeoJSON response was not valid JSON.')
       if (cancelled) return
       const overlay = extractSubmissionOverlay(raw)
       setSubmission({
@@ -103,6 +153,7 @@ export function MonitoringView({ onBack, region: regionProp }: MonitoringViewPro
           totalFeatures: overlay.featureCount,
           returnedFeatures: overlay.featureCount,
           label: 'demo_predictions.geojson',
+          geojsonUrl: DEMO_GEOJSON_URL,
           timeStep: overlay.timeStep,
         },
       })
@@ -180,7 +231,7 @@ export function MonitoringView({ onBack, region: regionProp }: MonitoringViewPro
               </div>
             </div>
             <div className="monitoring-map-card__map">
-              <SubmissionMap region={region} variant="embedded" />
+              <SubmissionMap geojsonUrl={meta.geojsonUrl} region={region} variant="embedded" />
             </div>
           </section>
         )}
