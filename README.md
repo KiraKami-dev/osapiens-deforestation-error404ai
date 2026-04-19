@@ -23,7 +23,7 @@ python train.py --help
 
 <p align="center">
   <img src="https://github.com/user-attachments/assets/a63805f5-c3a6-40e4-b383-858bd7215a57" width="48%" />
-  <img src="https://github.com/user-attachments/assets/b4cb470e-8faf-45fd-8516-57636502d5ab" width="48%" />
+  <img src="https://github.com/user-attachments/assets/e5e18d8d-c2f8-4994-ad53-29e102630d0f" width="48%" />
 </p>
 
 ---
