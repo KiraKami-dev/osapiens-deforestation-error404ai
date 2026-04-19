@@ -22,17 +22,17 @@ python train.py --help
 
 ## 1. Pipeline overview (step by step)
 
-Each stage feeds the next. Do them in order when building a full run from raw inputs.
+Each stage feeds the next. Do them in order when running the full pipeline.
 
-1. **Preprocessing (`research/notebooks/`):** Notebooks build per-tile **slim** multi-band GeoTIFFs and **fused** label rasters on disk. Typical flow: explore or compress inputs → cloud masking → Sentinel‑1 / temporal / fusion steps → a slim stack plus labels ready for training.
+1. **Preprocessing (`research/notebooks/`):** Notebooks build per-tile **fused** multi-band GeoTIFFs and **fused** labels. Typical flow: explore or compress inputs → cloud masking → Sentinel‑1 / temporal / fusion steps → a slim stack plus labels ready for training.
 
-2. **Training (`research/train.py`):** K-fold cross-validation on the prepared tiles. Uses random crops, BCE + Dice loss, Adam, and `ReduceLROnPlateau` on `val_union_iou`. Saves one checkpoint folder per fold.
+2. **Training (`research/train.py`):** K-fold cross-validation on the prepared tiles. Uses random crops of 256 x 256, BCE + Dice loss, Adam, and `ReduceLROnPlateau`. 
 
-3. **Evaluation (`research/validation.py`):** Loads best checkpoints, refits normalization on each fold’s **train** tiles, scores **val** tiles. Optional 8-way test-time augmentation (TTA) and a foreground probability threshold grid.
+3. **Evaluation (`research/validation.py`):** Loads best checkpoints, refits normalization on each fold’s **train** tiles, scores **val** tiles. Run test-time augmentation (TTA) and a threshold optimization.
 
-4. **Ensembling (`research/ensemble.py`):** Merges several trained runs that share the same fold splits. You can average logits, use confidence-weighted probabilities, or supply manual weights.
+4. **Ensembling (`research/ensemble.py`):** Merges several trained runs that share the same fold splits based on model confidence. 
 
-5. **Inference / submission (`research/submission.py`):** Full-tile prediction on test (or GeoJSON-listed) tiles; optional TTA and threshold tuning; writes GeoJSON for upload.
+5. **Inference / submission (`research/submission.py`):** Full-tile prediction on test (or GeoJSON-listed) tiles with TTA and threshold tuning. Generates the GeoJSON for upload.
 
 ---
 
@@ -82,18 +82,18 @@ Labels are aligned to the feature grid in `research/utils/dataset.py` when CRS o
 
 ### Metrics (`research/utils/metrics.py`)
 
-* **`mean_union_iou_batch_ignore`:** Union IoU on class **1** vs ground truth, excluding label **255**.
+* Union IoU on pixels.
 
 ---
 
 ## 5. Training (`research/train.py`)
 
-* **CV:** `--cv-folds` (default 5), `KFold` with `--seed`. Needs at least `K` tiles.
-* **Normalization:** `--input-norm zscore` (default) or `minmax`, fit on **training tiles only** per fold.
-* **Training:** Random `--crop-size` crops, `--crops-per-tile` per epoch, **8-way** augmentation (same family as eval TTA).
-* **Validation:** Full tile, batch size 1.
-* **Early stopping:** On **`val_union_iou`** with **`--early-stop-patience`** (default 30).
-* **Outputs:** Checkpoints under `{--out-dir}/checkpoints/version_N/fold{k}/best-*.ckpt`. TensorBoard under `{--out-dir}/tensorboard/fold*/`.
+* **CV:** K-Fold Cross Validation. We used K = 4.
+* **Normalization:** We normalize the data based on training tiles.
+* **Training:** We use Random `--crop-size` crops, `--crops-per-tile` per epoch, horizontal flip, vertical flip, and rotation as augmentation.
+* **Validation:** Run trained model on full tile.
+* **Early stopping**.
+* **Outputs:** We save the last abd best checkpoints, as well as training log in Tensorboard.
 
 <img width="850" height="481" alt="image" src="https://github.com/user-attachments/assets/3307683a-04d9-42a5-b8c1-7c98345c8fc2" />
 
@@ -127,7 +127,7 @@ For each validation fold, loads `best-*.ckpt` from each run directory (same fold
 * **weighted:** Normalized **`--weights`** on logits before averaging.
 * **confidence:** Per-pixel weights ∝ **`max(p, 1−p)`** on each model’s probability; weighted average of **probabilities** (not logits).
 
-Evaluation options mirror `validation.py` (no TTA / TTA@0.5 / TTA + threshold grid).
+Evaluation options mirror `validation.py` (no TTA / TTA@0.5 / TTA + threshold tuning).
 
 ---
 
