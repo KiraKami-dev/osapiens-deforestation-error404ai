@@ -1,0 +1,16 @@
+matplotlib~=3.9.0
+numpy~=1.26.4
+rasterio~=1.4.3
+geopandas~=1.0.0
+shapely~=2.0.0
+scikit-learn~=1.5.0
+xgboost>=2.0.0
+# AMD: use ROCm wheels only (PyPI “torch” is NVIDIA/cu12x). Example:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/rocm7.0
+torch>=2.10.0
+torchvision>=0.15.0
+pytorch-lightning>=2.4.0
+torchmetrics>=1.4.0
+tensorboard>=2.14.0
+PyYAML>=6.0.0
+# If you see AttributeError: triton has no attribute language, reinstall: pip install --force-reinstall triton-rocm==3.6.0 --index-url https://download.pytorch.org/whl/rocm7.0
