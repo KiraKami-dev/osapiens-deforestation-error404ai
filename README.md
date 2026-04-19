@@ -44,6 +44,51 @@ Each stage feeds the next. Do them in order when running the full pipeline.
 
 ---
 
+## 2. Data cleanup 
+### 2.1 Feature Engineering 
+This is the core compression step. Instead of keeping raw multi-temporal imagery, it computes temporal change statistics:
+
+AEF features (394 bands):
+
+Loads 2020 as baseline (64 bands)
+For each year 2021–2025: computes delta = AEF_year − AEF_2020 (5 × 64 = 320 bands)
+Delta L2 norm per year (5 bands) — magnitude of embedding change
+Cosine distance per year (5 bands) — directional change: 
+
+We also did PCA analysis, which gave 15 channels explaining 95 percent of the data, but the Fisher discriminant ratio of that came out really low, and since the goal was to maximize separation, not variance, we prioritized that.
+​
+### 2.2 Label Cleaning
+Step 1: Decode — read raw files, throw away old alerts
+RADD: One file per tile. Values encode CDDDD (confidence digit + days since 2014-12-31). Script splits that into a confidence (2 or 3) and a date. If the date is before Jan 1, 2021 → set to 0. Otherwise keep the confidence value (2 or 3).
+GLAD-L: Five files per tile (one per year 2021–2025), each with values 0/2/3. Also five companion date files with day-of-year. Script checks if each alert's date is ≥ Jan 1, 2021 (which it almost always is since the files are yearly). Merges all 5 years into one layer by taking the max confidence per pixel across years. Output: 0/2/3.
+GLAD-S2: One alert file (0–4) + one date file (days since 2019-01-01). Same date cutoff logic. Output: 0/1/2/3/4.
+No confidence thresholding. All confidence levels are kept.
+
+Step 2: Outlier filter — remove lonely alert pixels (at native resolution)
+For each alert pixel, look at a 7×7 window around it. Count what fraction of those 49 neighbours are also alerts. If fewer than 10% are alerts (i.e., <5 neighbours), zero it out. This kills isolated speckle — random single pixels that no nearby pixel agrees with.
+Runs at ~28m for GLAD-L, ~10m for RADD and GLAD-S2.
+
+Step 3: Morphological opening — erode then dilate (at native resolution)
+Binary erosion shrinks all alert patches by 1 pixel on every edge. Then dilation grows them back. Net effect: any alert patch that was only 1 pixel wide gets deleted, but larger patches survive with smoothed boundaries. Confidence values are restored to surviving pixels.
+Again at native resolution per source.
+
+Step 4: Resample GLAD-L ~28m → ~10m (only after cleaning)
+Nearest-neighbour resampling to match the RADD/GLAD-S2 10m grid. Each cleaned 28m GLAD-L pixel becomes ~6.25 10m pixels with the same confidence value. This is purely geometric alignment — no data transformation.
+
+### 2.3 Label Fusion
+
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/a63805f5-c3a6-40e4-b383-858bd7215a57" width="48%" />
+  <img src="https://github.com/user-attachments/assets/e5e18d8d-c2f8-4994-ad53-29e102630d0f" width="48%" />
+</p>
+
+S1 features (6 bands):
+
+Splits monthly dB timeseries into before (2020–2021) and after (2023–2025)
+Computes: before_mean, before_std, after_mean, after_std, change_mean, change_ratio
+Reprojects S1 grid to AEF grid (bilinear)
+Output: 400-band GeoTIFF per tile — still large but all temporal info is now compressed into statistics.
+
 ## 2. Data layout and GeoJSON
 
 Point `--data-root` at a directory that mirrors what the notebooks produced.
