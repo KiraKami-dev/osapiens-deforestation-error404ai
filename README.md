@@ -19,6 +19,13 @@ python train.py --help
 ```
 
 ---
+## Screenshots
+
+<img width="1040" height="600" alt="image" src="https://github.com/user-attachments/assets/a63805f5-c3a6-40e4-b383-858bd7215a57" />
+<img width="1040" height="600" alt="image" src="https://github.com/user-attachments/assets/b4cb470e-8faf-45fd-8516-57636502d5ab" />
+
+
+---
 
 ## 1. Pipeline overview (step by step)
 
