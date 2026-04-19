@@ -77,6 +77,20 @@ Nearest-neighbour resampling to match the RADD/GLAD-S2 10m grid. Each cleaned 28
 
 ### 2.3 Label Fusion
 
+A primary technical challenge of this project was resolving conflicting supervision from three independent, noisy alert systems. Our pipeline transforms these "weak labels" into a high-fidelity binary supervisory signal for UNet training.
+
+#### 2.3.1
+
+Before fusion, each source was cleaned at its native resolution to prevent noise "smearing" during spatial resampling:
+
+- Outlier Filter: Applied a 7x7 neighborhood density check. Pixels with <10% local agreement (less than 5 neighbors) were zeroed out to eliminate sensor "speckle."
+
+- Morphological Opening: Performed binary erosion followed by dilation to strip single-pixel artifacts while preserving legitimate forest boundaries.
+
+- Geometric Alignment: Cleaned 28m GLAD-L pixels were resampled to the 10m grid using nearest-neighbor interpolation only after purification to ensure zero information loss.
+
+We implemented a Radar-First Override strategy. To ensure EUDR compliance under persistent cloud cover, the system treats Sentinel-1 (RADD) as the primary ground truth. In the absence of a radar signal, an alert is only triggered if both optical sources agree.
+
 <p align="center">
 <img width="631" height="273" alt="Screenshot 2026-04-18 at 16 28 30" src="https://github.com/user-attachments/assets/0714430b-af62-4006-80da-9a55b19fa91b" />
 <img width="646" height="423" alt="Screenshot 2026-04-18 at 16 26 28" src="https://github.com/user-attachments/assets/46ed8382-13a8-4bd7-886d-99f50cc4137d" />
