@@ -78,8 +78,8 @@ Nearest-neighbour resampling to match the RADD/GLAD-S2 10m grid. Each cleaned 28
 ### 2.3 Label Fusion
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/a63805f5-c3a6-40e4-b383-858bd7215a57" width="48%" />
-  <img src="https://github.com/user-attachments/assets/e5e18d8d-c2f8-4994-ad53-29e102630d0f" width="48%" />
+<img width="631" height="273" alt="Screenshot 2026-04-18 at 16 28 30" src="https://github.com/user-attachments/assets/0714430b-af62-4006-80da-9a55b19fa91b" />
+<img width="646" height="423" alt="Screenshot 2026-04-18 at 16 26 28" src="https://github.com/user-attachments/assets/46ed8382-13a8-4bd7-886d-99f50cc4137d" />
 </p>
 
 S1 features (6 bands):
