@@ -1,0 +1,135 @@
+.monitoring-view {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(30, 58, 95, 0.45), transparent 55%),
+    linear-gradient(180deg, #070d18 0%, #0a101f 40%, #060a12 100%);
+  color: #e2e8f0;
+}
+
+.monitoring-topbar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1.25rem;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.monitoring-topbar-text {
+  flex: 1;
+  min-width: min(100%, 280px);
+}
+
+.monitoring-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: rgba(148, 163, 184, 0.95);
+  cursor: pointer;
+  transition: color 0.15s ease;
+  align-self: flex-start;
+}
+
+.monitoring-back:hover {
+  color: #7dd3fc;
+}
+
+.monitoring-title {
+  margin: 0 0 0.35rem;
+  font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #f8fafc;
+}
+
+.monitoring-lead {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: rgba(148, 163, 184, 0.95);
+}
+
+.monitoring-lead strong {
+  font-weight: 600;
+  color: rgba(203, 213, 225, 0.98);
+}
+
+.monitoring-chart-main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.monitoring-chart-card {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 1.25rem 1.35rem 1.5rem;
+}
+
+.monitoring-imagery-card {
+  max-width: 1120px;
+  margin: 1rem auto 0;
+  padding: 1.25rem 1.35rem 1.35rem;
+}
+
+.monitoring-section-title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #f1f5f9;
+}
+
+.monitoring-chart-caption {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: rgba(148, 163, 184, 0.92);
+}
+
+.monitoring-chart-caption code {
+  font-size: 0.78em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: rgba(15, 23, 42, 0.65);
+  color: #bae6fd;
+}
+
+.monitoring-chart-caption--error {
+  color: #fecaca;
+}
+
+/* Wrapper for VegetationTimeseriesChart */
+.monitoring-vega-chart {
+  padding-top: 0.25rem;
+}
+
+.monitoring-map-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.monitoring-map-card__map {
+  position: relative;
+  width: 100%;
+  border-radius: 0.65rem;
+  overflow: hidden;
+}

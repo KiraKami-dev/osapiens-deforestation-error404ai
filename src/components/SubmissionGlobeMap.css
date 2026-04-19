@@ -1,0 +1,50 @@
+.submission-globe {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 30%, rgba(56, 189, 248, 0.12), transparent 65%),
+    #020617;
+}
+
+.submission-globe__canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.submission-globe__tooltip {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  padding: 0.5rem 0.85rem;
+  border-radius: 0.55rem;
+  background: rgba(8, 14, 28, 0.9);
+  border: 1px solid rgba(34, 197, 94, 0.55);
+  color: #f1f5f9;
+  font-size: 0.8rem;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.submission-globe__tooltip-title {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.submission-globe__tooltip-sub {
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.submission-globe .maplibregl-ctrl-attrib {
+  background: rgba(8, 14, 28, 0.65);
+  color: rgba(226, 232, 240, 0.85);
+  font-size: 0.7rem;
+}
+
+.submission-globe .maplibregl-ctrl-attrib a {
+  color: #93c5fd;
+}
