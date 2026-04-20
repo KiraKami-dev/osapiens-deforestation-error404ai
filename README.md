@@ -197,6 +197,7 @@ Full-tile inference on test or listed tiles.
 * **Defaults:** **`--tta`** on (8-way), **`--tune-threshold`** on; use **`--no-tune-threshold`** and **`--prob-threshold`** to fix a threshold.
 * **Vectorization:** Polygons in **EPSG:4326**; **`--min-area-ha`** filters small polygons (`research/utils/submission_utils.py`).
 
+## Future improvements would include procuring more data (2015 - 2020) and running it through the same cleaning pipeline to produce more high quality data.
 ---
 
 ## 9. Utilities
